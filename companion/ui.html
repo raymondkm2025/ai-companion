@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="zh-HK">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANIMA 記憶服務</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1d2129; --border:#262b36;
+    --text:#e6e9ef; --muted:#8b93a7; --accent:#6ea8fe; --good:#7ec699;
+    --warn:#f0a35e; --bad:#e06c75;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font:14px/1.6 -apple-system,"Segoe UI","Microsoft JhengHei",sans-serif;
+  }
+  code,pre,.mono{font-family:ui-monospace,"Cascadia Code",Consolas,monospace}
+  header{
+    display:flex; align-items:center; gap:12px;
+    padding:16px 22px; border-bottom:1px solid var(--border); background:var(--panel);
+  }
+  h1{font-size:16px; margin:0; font-weight:600; letter-spacing:.02em}
+  .badge{
+    font-size:12px; padding:3px 10px; border-radius:999px;
+    border:1px solid var(--border); color:var(--muted);
+  }
+  .badge.ok{color:var(--good); border-color:#2c4a3a}
+  .badge.bad{color:var(--bad); border-color:#4a2c2c}
+  nav{display:flex; gap:4px; padding:10px 18px 0; border-bottom:1px solid var(--border)}
+  nav button{
+    background:none; border:none; color:var(--muted); cursor:pointer;
+    padding:9px 14px; font-size:13px; border-bottom:2px solid transparent;
+  }
+  nav button:hover{color:var(--text)}
+  nav button.active{color:var(--accent); border-bottom-color:var(--accent)}
+  main{padding:20px 22px 60px; max-width:1080px}
+  .panel{display:none}
+  .panel.active{display:block}
+  .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px}
+  label{font-size:12px; color:var(--muted); display:block; margin-bottom:4px}
+  input,select,textarea,button{font-family:inherit; font-size:13px}
+  input[type=text],input[type=number],select,textarea{
+    background:var(--panel2); border:1px solid var(--border); color:var(--text);
+    border-radius:6px; padding:7px 9px; width:100%;
+  }
+  textarea{min-height:70px; resize:vertical; line-height:1.55}
+  input[type=range]{width:100%; accent-color:var(--accent)}
+  button.primary{
+    background:var(--accent); color:#0b1220; border:none; border-radius:6px;
+    padding:8px 16px; cursor:pointer; font-weight:600;
+  }
+  button.primary:hover{filter:brightness(1.1)}
+  button.ghost{
+    background:var(--panel2); color:var(--text); border:1px solid var(--border);
+    border-radius:6px; padding:6px 12px; cursor:pointer;
+  }
+  button.ghost:hover{border-color:var(--accent); color:var(--accent)}
+  button.tiny{padding:3px 8px; font-size:11px}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+  .grid3{display:grid; grid-template-columns:repeat(3,1fr); gap:12px}
+  @media(max-width:820px){.grid2,.grid3{grid-template-columns:1fr}}
+  .field{margin-bottom:12px}
+  .card{
+    background:var(--panel); border:1px solid var(--border); border-radius:9px;
+    padding:13px 15px; margin-bottom:10px;
+  }
+  .card .top{display:flex; gap:8px; align-items:center; margin-bottom:7px; flex-wrap:wrap}
+  .tag{
+    font-size:11px; padding:2px 8px; border-radius:5px;
+    background:#222836; color:var(--muted); border:1px solid var(--border);
+  }
+  .tag.episodic{color:#9ecbff; border-color:#2b3d55}
+  .tag.semantic{color:#c3a6ff; border-color:#3b2b55}
+  .tag.relational{color:#ffb3c7; border-color:#552b3d}
+  .tag.persona{color:#ffd479; border-color:#55492b}
+  .tag.suppressed{color:var(--bad); border-color:#4a2c2c}
+  .tag.pinned{color:var(--good); border-color:#2c4a3a}
+  .card .content{white-space:pre-wrap; word-break:break-word}
+  .card .verbatim{
+    margin-top:8px; padding:7px 11px; border-left:2px solid var(--accent);
+    background:#141a26; color:#c9d6ea; font-size:13px; border-radius:0 5px 5px 0;
+    white-space:pre-wrap;
+  }
+  .meta{font-size:11px; color:var(--muted); margin-top:8px; display:flex; gap:14px; flex-wrap:wrap}
+  .bars{margin-top:9px}
+  .bar{height:4px; background:#222836; border-radius:999px; overflow:hidden; margin-top:3px}
+  .bar > i{display:block; height:100%; background:var(--accent)}
+  .bar.warn > i{background:var(--warn)}
+  .bar.bad > i{background:var(--bad)}
+  .bar-label{font-size:11px; color:var(--muted); display:flex; justify-content:space-between}
+  .empty{color:var(--muted); font-size:13px; padding:22px 0; text-align:center}
+  pre.out{
+    background:#0c0f14; border:1px solid var(--border); border-radius:8px;
+    padding:13px; overflow:auto; font-size:12.5px; line-height:1.6;
+    white-space:pre-wrap; word-break:break-word; max-height:520px;
+  }
+  .note{font-size:12px; color:var(--muted); margin:8px 0 16px}
+  .err{color:var(--bad); font-size:13px; margin-top:10px}
+  .okmsg{color:var(--good); font-size:13px; margin-top:10px}
+  .sect{border-top:1px solid var(--border); margin-top:12px; padding-top:12px}
+  .sect:first-child{border-top:none; margin-top:0; padding-top:0}
+  .sect h3{font-size:12px; color:var(--muted); margin:0 0 6px; font-weight:600; text-transform:uppercase; letter-spacing:.06em}
+  .kv{display:grid; grid-template-columns:110px 1fr; gap:4px 10px; font-size:12.5px}
+  .kv dt{color:var(--muted)}
+  .kv dd{margin:0}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>ANIMA 記憶服務</h1>
+  <span id="healthBadge" class="badge">連線中…</span>
+  <span id="dataPath" class="badge" style="margin-left:auto"></span>
+</header>
+
+<nav>
+  <button data-tab="memories" class="active">記憶庫</button>
+  <button data-tab="ingest">寫入記憶</button>
+  <button data-tab="search">喚醒檢索</button>
+  <button data-tab="compile">上下文編譯</button>
+</nav>
+
+<main>
+
+  <!-- ============ 記憶庫 ============ -->
+  <section class="panel active" id="panel-memories">
+    <div class="row">
+      <div style="width:190px">
+        <label>層級過濾</label>
+        <select id="levelFilter">
+          <option value="">全部</option>
+          <option>working</option><option>episodic</option>
+          <option>semantic</option><option>relational</option><option>persona</option>
+        </select>
+      </div>
+      <div style="align-self:flex-end">
+        <button class="primary" id="btnRefresh">刷新</button>
+      </div>
+      <div style="align-self:flex-end">
+        <button class="ghost" id="btnConsolidate">執行鞏固（衰減＋鉤子）</button>
+      </div>
+    </div>
+    <div class="note">retention = 維持度（地板制，永不高於 1.0）；salience = 寫入時的顯著性。線條越長代表越容易被想起。</div>
+    <div id="memList"></div>
+    <div id="consolidateOut"></div>
+  </section>
+
+  <!-- ============ 寫入 ============ -->
+  <section class="panel" id="panel-ingest">
+    <div class="note">顯著性低於 0.35 會被拒（回應會顯示被拒條目與分數）。<b>使用者明示</b>（user_pinned）與 semantic／persona 層無條件入庫。</div>
+    <div class="grid2">
+      <div>
+        <div class="field">
+          <label>層級 level</label>
+          <select id="inLevel">
+            <option>episodic</option><option>semantic</option>
+            <option>relational</option><option>persona</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>內容 content（摘要式描述）</label>
+          <textarea id="inContent" placeholder="使用者說項目被臨時改需求，加班到十點錯過孩子睡前故事"></textarea>
+        </div>
+        <div class="field">
+          <label>逐字原話 verbatim（永遠不會被壓縮）</label>
+          <textarea id="inVerbatim" style="min-height:52px" placeholder="算了，反正也沒人在意"></textarea>
+        </div>
+      </div>
+      <div>
+        <div class="grid3">
+          <div class="field"><label>情緒效價 valence <span id="lbVal">-0.7</span></label>
+            <input type="range" id="inVal" min="-1" max="1" step="0.05" value="-0.7"></div>
+          <div class="field"><label>喚起度 arousal <span id="lbAro">0.85</span></label>
+            <input type="range" id="inAro" min="0" max="1" step="0.05" value="0.85"></div>
+          <div class="field"><label>自我揭露 <span id="lbSd">0.8</span></label>
+            <input type="range" id="inSd" min="0" max="1" step="0.05" value="0.8"></div>
+        </div>
+        <div class="field"><label>情緒標籤 label</label>
+          <input type="text" id="inLabel" value="frustration"></div>
+        <div class="field"><label>未完成事項 open loop</label>
+          <input type="text" id="inLoop" placeholder="留空代表沒有；例：項目週五驗收"></div>
+        <div class="row" style="margin-bottom:6px">
+          <label style="display:flex;gap:6px;align-items:center;margin:0">
+            <input type="checkbox" id="inRel"> 涉及「我們」（共同經歷）</label>
+          <label style="display:flex;gap:6px;align-items:center;margin:0">
+            <input type="checkbox" id="inPin"> 使用者明示要記住</label>
+        </div>
+      </div>
+    </div>
+    <button class="primary" id="btnIngest">寫入</button>
+    <div id="ingestOut"></div>
+  </section>
+
+  <!-- ============ 檢索 ============ -->
+  <section class="panel" id="panel-search">
+    <div class="note">相關性低於閘門的記憶<b>不會</b>被召回（相關性是資格，不是加權項）。下方同時顯示前 10 名喚醒分排序，方便檢查排序是否合理。</div>
+    <div class="grid2">
+      <div class="field"><label>查詢 query</label>
+        <input type="text" id="sqQuery" value="今天又是加班到很晚"></div>
+      <div class="field"><label>top_k</label>
+        <input type="number" id="sqTopk" value="3" min="1" max="10"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>當前情緒效價 <span id="lbSV">-0.6</span></label>
+        <input type="range" id="sqVal" min="-1" max="1" step="0.05" value="-0.6"></div>
+      <div class="field"><label>當前喚起度 <span id="lbSA">0.8</span></label>
+        <input type="range" id="sqAro" min="0" max="1" step="0.05" value="0.8"></div>
+    </div>
+    <button class="primary" id="btnSearch">喚醒</button>
+    <div id="searchOut"></div>
+  </section>
+
+  <!-- ============ 編譯 ============ -->
+  <section class="panel" id="panel-compile">
+    <div class="note">persona 12% / relational 18% / state 10% 為<b>不可淘汰</b>區塊（合計 40%），保證人格與關係基線永遠在場。</div>
+    <div class="grid3">
+      <div class="field"><label>token 預算</label>
+        <input type="number" id="cpBudget" value="2000" min="200" step="100"></div>
+      <div class="field"><label>召回數 recall_k</label>
+        <input type="number" id="cpRecall" value="3" min="0" max="8"></div>
+      <div class="field"><label>查詢 query</label>
+        <input type="text" id="cpQuery" value="今天也是加班到十點"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>人格內核 persona（不可淘汰）</label>
+        <textarea id="cpPersona">我說話簡短，不濫用安慰句式。我在意的是人有沒有被準確看見。</textarea></div>
+      <div class="field"><label>關係基線 relational（不可淘汰）</label>
+        <textarea id="cpRelational">認識 8 個月，稱呼已演化為「老莫」。進行中約定：一年咖啡。</textarea></div>
+    </div>
+    <div class="field"><label>動態狀態 state（不可淘汰）</label>
+      <input type="text" id="cpState" value="現在：深夜 01:20；距上次對話：1 小時；狀態：安靜、投入。"></div>
+    <div class="field"><label>對話逐輪 turns（每行 <span class="mono">user:</span> 或 <span class="mono">ai:</span>）</label>
+      <textarea id="cpTurns" style="min-height:92px">user: 算了，反正也沒人在意
+ai: ……
+user: 今天也是加班到十點</textarea></div>
+    <button class="primary" id="btnCompile">編譯</button>
+    <div id="compileOut"></div>
+  </section>
+
+</main>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- 基礎 ----------
+  function $(id){ return document.getElementById(id); }
+  function esc(s){
+    return String(s == null ? "" : s)
+      .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+  }
+  async function api(path, opts){
+    const res = await fetch(path, opts);
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch(e){ data = { raw: text }; }
+    if (!res.ok) throw new Error(data.error || (res.status + " " + res.statusText));
+    return data;
+  }
+  function post(path, body){
+    return api(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json; charset=utf-8" },
+      body: JSON.stringify(body)
+    });
+  }
+  function fail(el, err){ el.innerHTML = '<div class="err">✕ ' + esc(err.message || err) + "</div>"; }
+  function fmt(n, d){ return (typeof n === "number") ? n.toFixed(d == null ? 4 : d) : String(n); }
+
+  // ---------- 健康狀態 ----------
+  async function refreshHealth(){
+    const badge = $("healthBadge");
+    try {
+      const h = await api("/api/health");
+      badge.textContent = "ok · " + h.active_memories + " 條記憶";
+      badge.className = "badge ok";
+      $("dataPath").textContent = h.data_path || "";
+    } catch(e){
+      badge.textContent = "無法連線";
+      badge.className = "badge bad";
+    }
+  }
+
+  // ---------- 分頁 ----------
+  document.querySelectorAll("nav button").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      document.querySelectorAll("nav button").forEach(function(b){ b.classList.remove("active"); });
+      document.querySelectorAll(".panel").forEach(function(p){ p.classList.remove("active"); });
+      btn.classList.add("active");
+      $("panel-" + btn.dataset.tab).classList.add("active");
+      if (btn.dataset.tab === "memories") loadMemories();
+    });
+  });
+
+  // ---------- 記憶庫 ----------
+  function memoryCard(m){
+    const rt = Math.max(0, Math.min(1, m.retention || 0));
+    const sa = Math.max(0, Math.min(1, m.salience || 0));
+    let tags = '<span class="tag ' + esc(m.level) + '">' + esc(m.level) + "</span>";
+    if (m.suppressed) tags += '<span class="tag suppressed">已抑制</span>';
+    if (m.user_pinned) tags += '<span class="tag pinned">明示記住</span>';
+    return ''
+      + '<div class="card">'
+      +   '<div class="top">' + tags
+      +     '<span class="mono" style="font-size:11px;color:var(--muted)">' + esc(m.id) + "</span></div>"
+      +   '<div class="content">' + esc(m.content) + "</div>"
+      +   (m.verbatim ? '<div class="verbatim">「' + esc(m.verbatim) + '」</div>' : "")
+      +   '<div class="bars">'
+      +     bar("維持度 retention", rt, "bar")
+      +     bar("顯著性 salience", sa, "bar warn")
+      +   "</div>"
+      +   '<div class="meta">'
+      +     '<button class="ghost tiny" data-act="revise" data-id="' + esc(m.id) + '">修訂</button>'
+      +     '<button class="ghost tiny" data-act="suppress" data-id="' + esc(m.id) + '">別再提</button>'
+      +   "</div>"
+      + "</div>";
+  }
+  function bar(label, v, cls){
+    return '<div class="bar-label"><span>' + esc(label) + "</span><span>" + fmt(v, 3) + "</span></div>"
+         + '<div class="' + cls + '"><i style="width:' + (v * 100).toFixed(1) + '%"></i></div>';
+  }
+
+  async function loadMemories(){
+    const el = $("memList");
+    el.innerHTML = '<div class="empty">載入中…</div>';
+    try {
+      const level = $("levelFilter").value;
+      const data = await api("/api/memories" + (level ? "?level=" + encodeURIComponent(level) : ""));
+      if (!data.memories.length){ el.innerHTML = '<div class="empty">此層級沒有記憶</div>'; return; }
+      el.innerHTML = data.memories.map(memoryCard).join("");
+      el.querySelectorAll("button[data-act]").forEach(function(b){
+        b.addEventListener("click", function(){ onMemoryAction(b.dataset.act, b.dataset.id); });
+      });
+    } catch(e){ fail(el, e); }
+    refreshHealth();
+  }
+
+  async function onMemoryAction(act, id){
+    if (act === "revise"){
+      const current = prompt("輸入新的內容描述（舊版會保留在 previous_value）：");
+      if (current === null || current === "") return;
+      try { await post("/api/memory/" + id + "/revise", { content: current }); loadMemories(); }
+      catch(e){ alert("修訂失敗：" + e.message); }
+      return;
+    }
+    if (act === "suppress"){
+      if (!confirm("標記為「別再提」？該記憶會永久排除於召回之外（但不刪除）。")) return;
+      try { await post("/api/memory/" + id + "/suppress", {}); loadMemories(); }
+      catch(e){ alert("操作失敗：" + e.message); }
+    }
+  }
+
+  $("btnRefresh").addEventListener("click", loadMemories);
+  $("levelFilter").addEventListener("change", loadMemories);
+
+  $("btnConsolidate").addEventListener("click", async function(){
+    const out = $("consolidateOut");
+    out.innerHTML = "";
+    try {
+      const r = await post("/api/consolidate", {});
+      out.innerHTML = '<div class="card"><div class="top"><span class="tag">鞏固完成</span></div>'
+        + '<div class="kv"><dt>活躍記憶</dt><dd>' + esc(r.active) + "</dd>"
+        + "<dt>歸檔</dt><dd>" + esc((r.archived || []).length ? r.archived.join(", ") : "無") + "</dd></div>"
+        + '<div class="sect"><h3>主動提起鉤子</h3>'
+        + ((r.hooks && r.hooks.length)
+            ? r.hooks.map(function(h){ return '<div class="verbatim">· ' + esc(h) + "</div>"; }).join("")
+            : '<div class="note" style="margin:0">暫無未完成事項</div>')
+        + "</div></div>";
+      loadMemories();
+    } catch(e){ fail(out, e); }
+  });
+
+  // ---------- 滑桿標籤 ----------
+  function bindRange(inputId, labelId, digits){
+    const i = $(inputId), l = $(labelId);
+    function sync(){ l.textContent = Number(i.value).toFixed(digits == null ? 2 : digits); }
+    i.addEventListener("input", sync); sync();
+  }
+  bindRange("inVal","lbVal",2); bindRange("inAro","lbAro",2); bindRange("inSd","lbSd",2);
+  bindRange("sqVal","lbSV",2); bindRange("sqAro","lbSA",2);
+
+  // ---------- 寫入 ----------
+  $("btnIngest").addEventListener("click", async function(){
+    const out = $("ingestOut");
+    out.innerHTML = "";
+    const content = $("inContent").value.trim();
+    if (!content){ fail(out, { message: "內容不能為空" }); return; }
+    const item = {
+      level: $("inLevel").value,
+      content: content,
+      verbatim: $("inVerbatim").value.trim(),
+      emotion: {
+        valence: Number($("inVal").value),
+        arousal: Number($("inAro").value),
+        label: $("inLabel").value.trim() || "neutral"
+      },
+      self_disclosure: Number($("inSd").value),
+      relational: $("inRel").checked,
+      user_pinned: $("inPin").checked
+    };
+    const loop = $("inLoop").value.trim();
+    if (loop) item.open_loop = { is_open: true, desc: loop };
+
+    try {
+      const r = await post("/api/memory/ingest", { items: [item] });
+      let html = "";
+      if (r.admitted.length){
+        html += '<div class="okmsg">✓ 入庫 ' + r.admitted.length + " 條</div>";
+        html += r.admitted.map(function(a){
+          return '<div class="card"><div class="top"><span class="tag pinned">admitted</span>'
+            + (a.flashbulb ? '<span class="tag">閃光燈記憶</span>' : "")
+            + '<span class="mono" style="font-size:11px;color:var(--muted)">' + esc(a.id) + "</span></div>"
+            + bar("顯著性", Math.min(1, a.salience), "bar warn") + "</div>";
+        }).join("");
+      }
+      if (r.rejected.length){
+        html += '<div class="err" style="margin-top:14px">✕ 被拒 ' + r.rejected.length + " 條</div>";
+        html += r.rejected.map(function(x){
+          return '<div class="card" style="border-color:#4a2c2c">'
+            + '<div class="top"><span class="tag suppressed">rejected</span>'
+            + '<span class="tag">' + esc(x.reason || "") + "</span></div>"
+            + '<div class="content">' + esc(x.content || "") + "</div>"
+            + (typeof x.salience === "number"
+                ? bar("顯著性（門檻 0.35）", Math.min(1, x.salience), "bar bad") : "")
+            + "</div>";
+        }).join("");
+      }
+      out.innerHTML = html;
+      refreshHealth();
+    } catch(e){ fail(out, e); }
+  });
+
+  // ---------- 檢索 ----------
+  $("btnSearch").addEventListener("click", async function(){
+    const out = $("searchOut");
+    out.innerHTML = '<div class="empty">檢索中…</div>';
+    try {
+      const r = await post("/api/memory/search", {
+        query: $("sqQuery").value,
+        affect: { valence: Number($("sqVal").value), arousal: Number($("sqAro").value) },
+        top_k: Number($("sqTopk").value)
+      });
+      let html = "";
+      if (r.recalled.length){
+        html += '<div class="sect"><h3>已喚醒（' + r.recalled.length + "）</h3>";
+        html += r.recalled.map(function(m){
+          return '<div class="card"><div class="top">'
+            + '<span class="tag ' + esc(m.level) + '">' + esc(m.level) + "</span>"
+            + '<span class="mono" style="font-size:11px;color:var(--muted)">' + esc(m.id) + "</span>"
+            + '<span class="tag">被想起 ' + esc(m.recall_count) + " 次</span></div>"
+            + '<div class="content">' + esc(m.content) + "</div>"
+            + (m.verbatim ? '<div class="verbatim">「' + esc(m.verbatim) + '」</div>' : "")
+            + bar("維持度", Math.min(1, m.retention), "bar")
+            + "</div>";
+        }).join("") + "</div>";
+      } else {
+        html += '<div class="card"><div class="empty">沒有任何記憶通過相關性閘門<br>'
+             + '<span style="font-size:12px">這是正確行為——不相關的記憶不該被想起</span></div></div>';
+      }
+      if (r.candidates && r.candidates.length){
+        html += '<div class="sect"><h3>喚醒分排序（前 ' + r.candidates.length + "）</h3>";
+        html += '<div class="card">' + r.candidates.map(function(c){
+          return bar(esc(c.content.slice(0, 38)) + (c.content.length > 38 ? "…" : ""),
+                     Math.min(1, c.wake_score), "bar");
+        }).join("") + "</div></div>";
+      }
+      out.innerHTML = html;
+      refreshHealth();
+    } catch(e){ fail(out, e); }
+  });
+
+  // ---------- 編譯 ----------
+  function parseTurns(raw){
+    return raw.split("\n").map(function(line){
+      line = line.trim();
+      if (!line) return null;
+      const m = line.match(/^(user|ai|assistant|使用者|助手)\s*[:：]\s*(.*)$/i);
+      if (m){
+        const who = /^(ai|assistant|助手)$/i.test(m[1]) ? "ai" : "user";
+        return { speaker: who, text: m[2] };
+      }
+      return { speaker: "user", text: line };
+    }).filter(Boolean);
+  }
+
+  $("btnCompile").addEventListener("click", async function(){
+    const out = $("compileOut");
+    out.innerHTML = '<div class="empty">編譯中…</div>';
+    try {
+      const r = await post("/api/context/compile", {
+        budget_tokens: Number($("cpBudget").value),
+        recall_k: Number($("cpRecall").value),
+        query: $("cpQuery").value,
+        persona: $("cpPersona").value,
+        relational: $("cpRelational").value,
+        state: $("cpState").value,
+        turns: parseTurns($("cpTurns").value)
+      });
+
+      const labels = { persona:"人格內核", relational:"關係基線", recalled:"喚醒召回",
+                       dialogue:"對話（三級壓縮）", state:"動態狀態" };
+      let budgetHtml = '<div class="card"><div class="top"><span class="tag">預算使用</span>'
+        + '<span class="tag">總計 ' + esc(r.total_tokens) + " tokens</span>"
+        + (r.over_budget && r.over_budget.length
+            ? '<span class="tag suppressed">超支：' + esc(r.over_budget.join(", ")) + "</span>"
+            : '<span class="tag pinned">無超支</span>')
+        + "</div>";
+      ["persona","relational","recalled","dialogue","state"].forEach(function(k){
+        const used = r.usage[k] || 0, cap = r.budget[k] || 1;
+        const ratio = Math.min(1, used / cap);
+        const cls = used > cap ? "bar bad" : (ratio > 0.85 ? "bar warn" : "bar");
+        budgetHtml += '<div style="margin-top:9px">'
+          + '<div class="bar-label"><span>' + esc(labels[k]) + "</span><span>"
+          + used + " / " + cap + " tokens</span></div>"
+          + '<div class="' + cls + '"><i style="width:' + (ratio * 100).toFixed(1) + '%"></i></div></div>';
+      });
+      budgetHtml += "</div>";
+
+      let html = budgetHtml;
+      html += '<div class="sect"><h3>編譯輸出（可直接餵給模型）</h3><pre class="out">'
+        + esc(r.prompt) + "</pre></div>";
+      if (r.recalled_ids && r.recalled_ids.length){
+        html += '<div class="note">本次召回：<span class="mono">' + esc(r.recalled_ids.join(", ")) + "</span></div>";
+      }
+      out.innerHTML = html;
+      refreshHealth();
+    } catch(e){ fail(out, e); }
+  });
+
+  // ---------- 啟動 ----------
+  refreshHealth();
+  loadMemories();
+  setInterval(refreshHealth, 15000);
+})();
+</script>
+</body>
+</html>
